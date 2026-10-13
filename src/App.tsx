@@ -171,11 +171,11 @@ const Navbar = ({ onOpenQuote }: { onOpenQuote: () => void }) => {
           <div className="flex items-center gap-6">
             <span className="flex items-center gap-1.5 font-medium">
               <Phone className="w-3.5 h-3.5 text-amber-400" />
-              대표전화: <strong className="text-white">02-2689-5009</strong>
+              대표전화: <strong className="text-white">02-891-8190</strong>
             </span>
             <span className="hidden sm:flex items-center gap-1.5 font-medium">
               <Printer className="w-3.5 h-3.5 text-amber-400" />
-              FAX: 02-2689-6550
+              FAX: 02-891-8192
             </span>
             <span className="hidden md:flex items-center gap-1.5 text-slate-400">
               <Clock className="w-3.5 h-3.5 text-amber-400" />
@@ -309,30 +309,26 @@ export default function App() {
     setStatusMessage(null);
 
     try {
-      // Web3Forms 무료 이메일 전송 API (opop3851963@gmail.com 수신)
-      const res = await fetch("https://api.web3forms.com/submit", {
+      // 1. Resend API 엔드포인트 호출 (/api/send-email)
+      const res = await fetch("/api/send-email", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Accept: "application/json"
         },
         body: JSON.stringify({
-          access_key: "05b5ee2e-f7a9-455a-bd50-4ff6f14b60ea", // 기본 키 (또는 유저 access key)
-          to_email: "opop3851963@gmail.com",
-          from_name: formData.name || "일신아이디 홈페이지 방문자",
-          subject: `[(주)일신아이디 온라인 문의] ${formData.name}님의 ${formData.category} 견적/상담 신청`,
-          담당자명: formData.name,
-          연락처: formData.phone,
-          공사구분: formData.category,
-          희망예산_또는_면적: formData.budget || "미입력",
-          공사위치: formData.address || "미입력",
-          문의내용: formData.message || "내용 없음"
+          name: formData.name,
+          phone: formData.phone,
+          category: formData.category,
+          budget: formData.budget,
+          address: formData.address,
+          message: formData.message
         })
       });
 
       const data = await res.json();
 
-      if (data.success) {
+      if (res.ok && data?.id) {
         setStatusMessage({
           type: "success",
           text: "문의사항이 담당자 이메일(opop3851963@gmail.com)로 성공적으로 전송되었습니다! 확인 후 신속히 연락드리겠습니다."
@@ -343,19 +339,42 @@ export default function App() {
           setStatusMessage(null);
         }, 3000);
       } else {
-        // Fallback: mailto 링크 바로 연결
-        const mailSubject = encodeURIComponent(`[(주)일신아이디 문의] ${formData.name}님의 상담 신청`);
-        const mailBody = encodeURIComponent(
-          `성함/업체명: ${formData.name}\n연락처: ${formData.phone}\n공사구분: ${formData.category}\n상세내용: ${formData.message}`
-        );
-        window.open(`mailto:opop3851963@gmail.com?subject=${mailSubject}&body=${mailBody}`, "_blank");
-        setStatusMessage({
-          type: "success",
-          text: "문의 메일 전송 창이 열렸습니다. (opop3851963@gmail.com)"
-        });
+        throw new Error(data?.message || "Resend 발송 실패");
       }
-    } catch (err) {
-      // 네트워크 오류 시 mailto 폴백
+    } catch (err: any) {
+      console.warn("Resend API 호출 대체 (Web3Forms/mailto 백업 작동):", err);
+
+      // 2. 백업 수단: Web3Forms 시도 및 최종 mailto 연결
+      try {
+        const fallbackRes = await fetch("https://api.web3forms.com/submit", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Accept: "application/json" },
+          body: JSON.stringify({
+            access_key: "05b5ee2e-f7a9-455a-bd50-4ff6f14b60ea",
+            to_email: "opop3851963@gmail.com",
+            from_name: formData.name || "일신아이디 방문자",
+            subject: `[(주)일신아이디 온라인 문의] ${formData.name}님의 ${formData.category} 견적/상담 신청`,
+            담당자명: formData.name,
+            연락처: formData.phone,
+            공사구분: formData.category,
+            문의내용: formData.message
+          })
+        });
+
+        const fallbackData = await fallbackRes.json();
+        if (fallbackData.success) {
+          setStatusMessage({
+            type: "success",
+            text: "문의사항이 담당자 이메일(opop3851963@gmail.com)로 성공적으로 전송되었습니다!"
+          });
+          setFormData({ name: "", phone: "", category: "실내건축공사", budget: "", address: "", message: "" });
+          return;
+        }
+      } catch (e) {
+        // pass to mailto
+      }
+
+      // 최종 Fallback: mailto 창 열기
       const mailSubject = encodeURIComponent(`[(주)일신아이디 문의] ${formData.name}님의 상담 신청`);
       const mailBody = encodeURIComponent(
         `성함/업체명: ${formData.name}\n연락처: ${formData.phone}\n공사구분: ${formData.category}\n상세내용: ${formData.message}`
@@ -912,7 +931,7 @@ export default function App() {
                     <Phone className="w-6 h-6 text-amber-400 shrink-0" />
                     <div>
                       <span className="text-xs text-slate-400 block font-bold">대표 상담 전화</span>
-                      <a href="tel:02-2689-5009" className="text-xl text-white font-black hover:text-amber-300">02-2689-5009</a>
+                      <a href="tel:02-891-8190" className="text-xl text-white font-black hover:text-amber-300">02-891-8190</a>
                     </div>
                   </div>
                   
@@ -920,7 +939,7 @@ export default function App() {
                     <Printer className="w-6 h-6 text-amber-400 shrink-0" />
                     <div>
                       <span className="text-xs text-slate-400 block font-bold">팩스 (도면 접수 가능)</span>
-                      <strong className="text-lg text-white">02-2689-6550</strong>
+                      <strong className="text-lg text-white">02-891-8192</strong>
                     </div>
                   </div>
 
@@ -928,7 +947,7 @@ export default function App() {
                     <MapPin className="w-6 h-6 text-amber-400 shrink-0" />
                     <div>
                       <span className="text-xs text-slate-400 block font-bold">본사 위치</span>
-                      <span className="text-sm text-white font-medium">경기도 광명시 오리로 651번길 8 현대테라타워 광명 619호</span>
+                      <span className="text-sm text-white font-medium">경기도 광명시 범안로 1039 삼호빌딩 비103호</span>
                     </div>
                   </div>
                 </div>
@@ -1058,15 +1077,15 @@ export default function App() {
               <ul className="space-y-3 text-xs">
                 <li className="flex items-start gap-2.5">
                   <MapPin className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-                  <span>경기도 광명시 오리로 651번길 8 현대테라타워 광명 619호</span>
+                  <span>경기도 광명시 범안로 1039 삼호빌딩 비103호</span>
                 </li>
                 <li className="flex items-center gap-2.5">
                   <Phone className="w-4 h-4 text-amber-400 shrink-0" />
-                  <span>TEL : 02-2689-5009</span>
+                  <span>TEL : 02-891-8190</span>
                 </li>
                 <li className="flex items-center gap-2.5">
                   <Printer className="w-4 h-4 text-amber-400 shrink-0" />
-                  <span>FAX : 02-2689-6550</span>
+                  <span>FAX : 02-891-8192</span>
                 </li>
               </ul>
             </div>
@@ -1276,6 +1295,32 @@ export default function App() {
           </div>
         )}
       </AnimatePresence>
+ 
+      {/* KAKAO OPEN CHAT FLOATING BUTTON */}
+      <aside aria-label="카카오톡 1:1 상담 바로가기" className="fixed bottom-6 right-6 z-40 flex items-center group">
+        <a
+          href="https://open.kakao.com/o/sjy9xcSi"
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="카카오톡 1:1 오픈채팅 실시간 상담창 열기"
+          className="flex items-center gap-2.5 bg-[#FEE500] hover:bg-[#FADA0A] text-[#191919] px-4 py-3 sm:px-5 sm:py-3.5 rounded-full shadow-2xl hover:shadow-amber-500/30 hover:scale-105 active:scale-95 transition-all duration-300 border border-yellow-400/40"
+        >
+          {/* Kakao Talk Speech Bubble Icon */}
+          <div className="w-6 h-6 shrink-0 flex items-center justify-center">
+            <svg
+              viewBox="0 0 24 24"
+              fill="currentColor"
+              className="w-5 h-5 text-[#371D1E]"
+            >
+              <path d="M12 3C6.477 3 2 6.582 2 11c0 2.825 1.83 5.3 4.63 6.69-.17.65-.67 2.45-.77 2.84-.13.48.17.47.37.34.15-.1 2.42-1.63 3.4-2.3.77.11 1.56.17 2.37.17 5.523 0 10-3.582 10-8S17.523 3 12 3z" />
+            </svg>
+          </div>
+          <div className="flex flex-col text-left pr-1">
+            <span className="text-[10px] font-black text-[#6B5335] leading-none mb-0.5">실시간 1:1 상담</span>
+            <span className="text-xs sm:text-sm font-extrabold text-[#191919] leading-tight tracking-tight">카톡 문의하기</span>
+          </div>
+        </a>
+      </aside>
 
     </div>
   );
