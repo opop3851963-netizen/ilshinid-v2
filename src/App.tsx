@@ -23,7 +23,9 @@ import {
   Paintbrush,
   Layers,
   Send,
-  Check
+  Check,
+  Mail,
+  MessageSquare
 } from "lucide-react";
 import { useState, FormEvent } from "react";
 
@@ -217,6 +219,7 @@ const Navbar = ({ onOpenQuote }: { onOpenQuote: () => void }) => {
               { label: "포트폴리오", href: "#portfolio" },
               { label: "면허·인증서", href: "#certifications" },
               { label: "기업소식", href: "#news" },
+              { label: "문의하기", href: "#contact" },
             ].map((menu) => (
               <a 
                 key={menu.label} 
@@ -254,6 +257,7 @@ const Navbar = ({ onOpenQuote }: { onOpenQuote: () => void }) => {
               { label: "포트폴리오", href: "#portfolio" },
               { label: "면허·인증서", href: "#certifications" },
               { label: "기업소식", href: "#news" },
+              { label: "문의하기", href: "#contact" },
             ].map((menu) => (
               <a 
                 key={menu.label} 
@@ -297,15 +301,73 @@ export default function App() {
     ? PORTFOLIO_ITEMS 
     : PORTFOLIO_ITEMS.filter(item => item.category === activeTab);
 
-  const handleSubmitQuote = (e: FormEvent) => {
+  const [statusMessage, setStatusMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  const handleSubmitQuote = async (e: FormEvent) => {
     e.preventDefault();
     setFormSubmitted(true);
-    setTimeout(() => {
+    setStatusMessage(null);
+
+    try {
+      // Web3Forms 무료 이메일 전송 API (opop3851963@gmail.com 수신)
+      const res = await fetch("https://api.web3forms.com/submit", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json"
+        },
+        body: JSON.stringify({
+          access_key: "05b5ee2e-f7a9-455a-bd50-4ff6f14b60ea", // 기본 키 (또는 유저 access key)
+          to_email: "opop3851963@gmail.com",
+          from_name: formData.name || "일신아이디 홈페이지 방문자",
+          subject: `[(주)일신아이디 온라인 문의] ${formData.name}님의 ${formData.category} 견적/상담 신청`,
+          담당자명: formData.name,
+          연락처: formData.phone,
+          공사구분: formData.category,
+          희망예산_또는_면적: formData.budget || "미입력",
+          공사위치: formData.address || "미입력",
+          문의내용: formData.message || "내용 없음"
+        })
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        setStatusMessage({
+          type: "success",
+          text: "문의사항이 담당자 이메일(opop3851963@gmail.com)로 성공적으로 전송되었습니다! 확인 후 신속히 연락드리겠습니다."
+        });
+        setFormData({ name: "", phone: "", category: "실내건축공사", budget: "", address: "", message: "" });
+        setTimeout(() => {
+          setIsQuoteOpen(false);
+          setStatusMessage(null);
+        }, 3000);
+      } else {
+        // Fallback: mailto 링크 바로 연결
+        const mailSubject = encodeURIComponent(`[(주)일신아이디 문의] ${formData.name}님의 상담 신청`);
+        const mailBody = encodeURIComponent(
+          `성함/업체명: ${formData.name}\n연락처: ${formData.phone}\n공사구분: ${formData.category}\n상세내용: ${formData.message}`
+        );
+        window.open(`mailto:opop3851963@gmail.com?subject=${mailSubject}&body=${mailBody}`, "_blank");
+        setStatusMessage({
+          type: "success",
+          text: "문의 메일 전송 창이 열렸습니다. (opop3851963@gmail.com)"
+        });
+      }
+    } catch (err) {
+      // 네트워크 오류 시 mailto 폴백
+      const mailSubject = encodeURIComponent(`[(주)일신아이디 문의] ${formData.name}님의 상담 신청`);
+      const mailBody = encodeURIComponent(
+        `성함/업체명: ${formData.name}\n연락처: ${formData.phone}\n공사구분: ${formData.category}\n상세내용: ${formData.message}`
+      );
+      window.open(`mailto:opop3851963@gmail.com?subject=${mailSubject}&body=${mailBody}`, "_blank");
+      setStatusMessage({
+        type: "success",
+        text: "문의 메일 전송 창이 열렸습니다. (opop3851963@gmail.com)"
+      });
+    } finally {
       setFormSubmitted(false);
-      setIsQuoteOpen(false);
-      setFormData({ name: "", phone: "", category: "실내건축공사", budget: "", address: "", message: "" });
-      alert("견적 문의가 성공적으로 접수되었습니다. 담당자가 조속히 연락드리겠습니다!");
-    }, 1200);
+    }
   };
 
   return (
@@ -815,7 +877,7 @@ export default function App() {
 
 
       {/* FAST QUOTE & CONTACT SECTION (Rich interactive consultation) */}
-      <section className="py-28 bg-white relative overflow-hidden">
+      <section id="contact" className="py-28 bg-white relative overflow-hidden">
         <div className="max-w-7xl mx-auto px-6 relative z-10">
           <div className="bg-gradient-to-br from-[#0b192c] to-[#1e3e62] text-white rounded-[3rem] p-10 md:p-16 shadow-2xl relative overflow-hidden">
             <div className="absolute top-0 right-0 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
@@ -825,22 +887,32 @@ export default function App() {
               {/* Left Text */}
               <div className="lg:col-span-6">
                 <span className="inline-block px-4 py-1.5 bg-amber-500/20 text-amber-300 text-xs font-black tracking-widest uppercase rounded-full mb-6 border border-amber-500/30">
-                  ONLINE INQUIRY
+                  ONLINE INQUIRY & CONTACT
                 </span>
                 <h2 className="text-3xl md:text-5xl font-black leading-tight mb-8">
-                  공간의 새로운 변화, <br />
-                  <span className="text-amber-400">(주)일신아이디</span>와 상의하세요
+                  문의사항을 남겨주시면, <br />
+                  <span className="text-amber-400">친절하고 신속하게</span> 답변드립니다
                 </h2>
                 <p className="text-slate-300 text-sm md:text-base leading-relaxed mb-10 font-medium">
-                  실내건축, 관공서 리모델링, 도장 및 방수 공사에 관한 맞춤형 견적을 신속하게 안내해 드립니다.
+                  실내건축, 관공서 리모델링, 도장 및 방수 공사에 관한 맞춤형 견적과 상담 요청을 남겨주시면 대표 담당자 이메일(<span className="text-amber-300 font-bold">opop3851963@gmail.com</span>)로 즉시 접수되어 확인 후 연락드립니다.
                 </p>
 
                 <div className="space-y-4">
                   <div className="flex items-center gap-4 bg-white/10 p-4 rounded-2xl border border-white/10 backdrop-blur-md">
+                    <Mail className="w-6 h-6 text-amber-400 shrink-0" />
+                    <div>
+                      <span className="text-xs text-slate-400 block font-bold">문의 수신 전용 이메일</span>
+                      <a href="mailto:opop3851963@gmail.com" className="text-base text-amber-300 font-bold hover:underline">
+                        opop3851963@gmail.com
+                      </a>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-4 bg-white/10 p-4 rounded-2xl border border-white/10 backdrop-blur-md">
                     <Phone className="w-6 h-6 text-amber-400 shrink-0" />
                     <div>
                       <span className="text-xs text-slate-400 block font-bold">대표 상담 전화</span>
-                      <strong className="text-xl text-white">02-2689-5009</strong>
+                      <a href="tel:02-2689-5009" className="text-xl text-white font-black hover:text-amber-300">02-2689-5009</a>
                     </div>
                   </div>
                   
@@ -865,12 +937,24 @@ export default function App() {
               {/* Right Fast Form */}
               <div className="lg:col-span-6">
                 <form onSubmit={handleSubmitQuote} className="bg-white text-slate-800 p-8 rounded-3xl shadow-xl space-y-4">
-                  <h3 className="text-2xl font-black text-[#0b192c] mb-2">무료 견적 신청서</h3>
-                  <p className="text-xs text-slate-500 mb-6 font-medium">기본 정보를 입력해주시면 담당자가 빠르게 연락드립니다.</p>
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-2xl font-black text-[#0b192c]">온라인 문의 및 견적 접수</h3>
+                    <span className="text-[11px] bg-amber-50 text-amber-700 font-bold px-2.5 py-1 rounded-full border border-amber-200">
+                      직통 메일 전송
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500 mb-6 font-medium">문의내용을 남겨주시면 담당자 메일로 실시간 접수됩니다.</p>
+
+                  {statusMessage && (
+                    <div className="p-4 rounded-xl text-xs font-bold leading-relaxed bg-emerald-50 text-emerald-800 border border-emerald-200 flex items-start gap-2">
+                      <Check className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                      <span>{statusMessage.text}</span>
+                    </div>
+                  )}
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <label className="text-xs font-bold text-slate-700 block mb-1.5">성함 / 담당자명</label>
+                      <label className="text-xs font-bold text-slate-700 block mb-1.5">성함 / 담당자명 *</label>
                       <input 
                         type="text" 
                         required
@@ -881,7 +965,7 @@ export default function App() {
                       />
                     </div>
                     <div>
-                      <label className="text-xs font-bold text-slate-700 block mb-1.5">연락처</label>
+                      <label className="text-xs font-bold text-slate-700 block mb-1.5">연락처 *</label>
                       <input 
                         type="tel" 
                         required
@@ -894,7 +978,7 @@ export default function App() {
                   </div>
 
                   <div>
-                    <label className="text-xs font-bold text-slate-700 block mb-1.5">공사 구분</label>
+                    <label className="text-xs font-bold text-slate-700 block mb-1.5">문의 및 공사 분야</label>
                     <select 
                       value={formData.category}
                       onChange={(e) => setFormData({ ...formData, category: e.target.value })}
@@ -903,15 +987,16 @@ export default function App() {
                       <option>실내건축공사 (상업/오피스)</option>
                       <option>관공서 & 교육시설 리모델링</option>
                       <option>도장·습식·방수·석공사</option>
-                      <option>기타 문의</option>
+                      <option>기타 공간 리모델링 및 단순 문의</option>
                     </select>
                   </div>
 
                   <div>
-                    <label className="text-xs font-bold text-slate-700 block mb-1.5">문의 내용</label>
+                    <label className="text-xs font-bold text-slate-700 block mb-1.5">문의 사항 및 요청내용 *</label>
                     <textarea 
-                      rows={3}
-                      placeholder="공사 위치, 예상 면적 및 요청사항을 간단히 적어주세요."
+                      rows={4}
+                      required
+                      placeholder="공사 위치, 예상 면적, 원하시는 공사 일정이나 궁금하신 점을 자유롭게 적어주세요."
                       value={formData.message}
                       onChange={(e) => setFormData({ ...formData, message: e.target.value })}
                       className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-amber-500 font-medium resize-none"
@@ -921,17 +1006,23 @@ export default function App() {
                   <button 
                     type="submit"
                     disabled={formSubmitted}
-                    className="w-full py-4 bg-[#0b192c] hover:bg-amber-600 text-white font-black rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 text-sm"
+                    className="w-full py-4 bg-[#0b192c] hover:bg-amber-600 text-white font-black rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 text-sm disabled:opacity-50"
                   >
                     {formSubmitted ? (
-                      <span>접수 처리 중...</span>
+                      <span>이메일 전송 중...</span>
                     ) : (
                       <>
                         <Send className="w-4 h-4 text-amber-400" />
-                        <span>견적 상담 신청하기</span>
+                        <span>문의사항 보내기</span>
                       </>
                     )}
                   </button>
+
+                  <div className="pt-2 text-center">
+                    <p className="text-[11px] text-slate-400">
+                      직접 이메일 발송을 원하시면 <a href="mailto:opop3851963@gmail.com" className="text-amber-600 underline font-bold">opop3851963@gmail.com</a>으로 메일을 보내실 수 있습니다.
+                    </p>
+                  </div>
                 </form>
               </div>
 
@@ -986,7 +1077,7 @@ export default function App() {
                 <li>상호명: (주)일신아이디</li>
                 <li>사업자등록번호: 140-81-37823</li>
                 <li>업종: 실내건축공사업 / 건축공사업</li>
-                <li>이메일: jd12488@hanmail.net</li>
+                <li>이메일: opop3851963@gmail.com</li>
               </ul>
             </div>
           </div>
@@ -1141,10 +1232,18 @@ export default function App() {
                   </select>
                 </div>
 
+                {statusMessage && (
+                  <div className="p-3 rounded-xl text-xs font-bold leading-relaxed bg-emerald-50 text-emerald-800 border border-emerald-200 flex items-start gap-2">
+                    <Check className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                    <span>{statusMessage.text}</span>
+                  </div>
+                )}
+
                 <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1">상세 문의 및 요청사항</label>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">상세 문의 및 요청사항 *</label>
                   <textarea 
                     rows={4}
+                    required
                     placeholder="공사 위치, 예상 면적, 공사 시기 등을 상세히 기술해주시면 정밀한 상담이 가능합니다."
                     value={formData.message}
                     onChange={(e) => setFormData({ ...formData, message: e.target.value })}
@@ -1155,10 +1254,23 @@ export default function App() {
                 <button 
                   type="submit"
                   disabled={formSubmitted}
-                  className="w-full py-4 bg-[#0b192c] hover:bg-amber-600 text-white font-extrabold text-xs rounded-xl transition-all shadow-lg flex items-center justify-center gap-2"
+                  className="w-full py-4 bg-[#0b192c] hover:bg-amber-600 text-white font-extrabold text-xs rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 disabled:opacity-50"
                 >
-                  {formSubmitted ? "접수 완료 중..." : "상담 신청하기"}
+                  {formSubmitted ? (
+                    <span>이메일 전송 중...</span>
+                  ) : (
+                    <>
+                      <Send className="w-4 h-4 text-amber-400" />
+                      <span>상담 문의 보내기</span>
+                    </>
+                  )}
                 </button>
+
+                <div className="text-center pt-1">
+                  <span className="text-[11px] text-slate-400">
+                    직접 이메일 문의: <a href="mailto:opop3851963@gmail.com" className="text-amber-600 underline font-semibold">opop3851963@gmail.com</a>
+                  </span>
+                </div>
               </form>
             </motion.div>
           </div>
