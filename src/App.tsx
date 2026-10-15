@@ -374,15 +374,10 @@ export default function App() {
         // pass to mailto
       }
 
-      // 최종 Fallback: mailto 창 열기
-      const mailSubject = encodeURIComponent(`[(주)일신아이디 문의] ${formData.name}님의 상담 신청`);
-      const mailBody = encodeURIComponent(
-        `성함/업체명: ${formData.name}\n연락처: ${formData.phone}\n공사구분: ${formData.category}\n상세내용: ${formData.message}`
-      );
-      window.open(`mailto:opop3851963@gmail.com?subject=${mailSubject}&body=${mailBody}`, "_blank");
+      // 최종 Fallback: 사용자에게 상태 알림
       setStatusMessage({
-        type: "success",
-        text: "문의 메일 전송 창이 열렸습니다. (opop3851963@gmail.com)"
+        type: "error",
+        text: "일시적인 오류로 전송되지 않았습니다. 전화(02-2688-6604) 또는 카카오톡으로 문의 부탁드립니다."
       });
     } finally {
       setFormSubmitted(false);
